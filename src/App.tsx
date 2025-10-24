@@ -19,6 +19,7 @@ import PestIdentifier from "./pages/PestIdentifier";
 import Profile from "./pages/Profile";
 import FarmProfileSetup from "./pages/FarmProfileSetup";
 import IoTDashboard from "./pages/IoTDashboard";
+import SoilAnalysis from "./pages/SoilAnalysis";
 import NotFound from "./pages/NotFound";
 
 const AppContent = () => {
@@ -41,6 +42,7 @@ const AppContent = () => {
                 <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
                 <Route path="/farm-profile" element={<ProtectedRoute><FarmProfileSetup /></ProtectedRoute>} />
                 <Route path="/iot-dashboard" element={<ProtectedRoute><IoTDashboard /></ProtectedRoute>} />
+                <Route path="/soil-analysis" element={<ProtectedRoute><SoilAnalysis /></ProtectedRoute>} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
               <BottomNav />

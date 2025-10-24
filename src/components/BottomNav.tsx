@@ -1,9 +1,10 @@
-import { Home, Cloud, Sparkles, Calculator, User } from "lucide-react";
+import { Home, Cloud, Sparkles, Calculator, User, MapPin } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
 const navItems = [
   { title: "Home", url: "/dashboard", icon: Home },
   { title: "Weather", url: "/weather", icon: Cloud },
+  { title: "Soil", url: "/soil-analysis", icon: MapPin },
   { title: "Farm AI", url: "/ai-advisor", icon: Sparkles },
   { title: "Tools", url: "/calculators", icon: Calculator },
   { title: "Profile", url: "/profile", icon: User },
