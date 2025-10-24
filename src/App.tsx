@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { BottomNav } from "@/components/BottomNav";
+import { AuthProvider } from "@/hooks/useAuth";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
 import Dashboard from "./pages/Dashboard";
@@ -30,14 +32,14 @@ const AppContent = () => {
             <AppSidebar />
             <main className="flex-1 w-full">
               <Routes>
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/weather" element={<Weather />} />
-                <Route path="/ai-advisor" element={<AIAdvisor />} />
-                <Route path="/calculators" element={<Calculators />} />
-                <Route path="/pest-identifier" element={<PestIdentifier />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/farm-profile" element={<FarmProfileSetup />} />
-                <Route path="/iot-dashboard" element={<IoTDashboard />} />
+                <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                <Route path="/weather" element={<ProtectedRoute><Weather /></ProtectedRoute>} />
+                <Route path="/ai-advisor" element={<ProtectedRoute><AIAdvisor /></ProtectedRoute>} />
+                <Route path="/calculators" element={<ProtectedRoute><Calculators /></ProtectedRoute>} />
+                <Route path="/pest-identifier" element={<ProtectedRoute><PestIdentifier /></ProtectedRoute>} />
+                <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+                <Route path="/farm-profile" element={<ProtectedRoute><FarmProfileSetup /></ProtectedRoute>} />
+                <Route path="/iot-dashboard" element={<ProtectedRoute><IoTDashboard /></ProtectedRoute>} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
               <BottomNav />
@@ -60,11 +62,13 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AppContent />
-      </BrowserRouter>
+      <AuthProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AppContent />
+        </BrowserRouter>
+      </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );

@@ -14,7 +14,81 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      fields: {
+        Row: {
+          created_at: string | null
+          crop: string
+          growth_stage: string
+          id: string
+          name: string
+          planting_date: string
+          size: number
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          crop: string
+          growth_stage: string
+          id?: string
+          name: string
+          planting_date: string
+          size: number
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          crop?: string
+          growth_stage?: string
+          id?: string
+          name?: string
+          planting_date?: string
+          size?: number
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string | null
+          email: string
+          farm_name: string | null
+          farm_size: number | null
+          farming_type: string | null
+          id: string
+          iot_enabled: boolean | null
+          irrigation_method: string | null
+          location: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          farm_name?: string | null
+          farm_size?: number | null
+          farming_type?: string | null
+          id: string
+          iot_enabled?: boolean | null
+          irrigation_method?: string | null
+          location?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          farm_name?: string | null
+          farm_size?: number | null
+          farming_type?: string | null
+          id?: string
+          iot_enabled?: boolean | null
+          irrigation_method?: string | null
+          location?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

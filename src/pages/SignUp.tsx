@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -7,16 +7,67 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sprout, Eye, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { authService } from "@/services/authService";
 
 const SignUp = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const { user } = useAuth();
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [formData, setFormData] = useState({
+    farmName: "",
+    email: "",
+    location: "",
+    farmSize: "",
+    irrigationMethod: "",
+    farmingType: "",
+    password: "",
+    confirmPassword: "",
+  });
 
   useEffect(() => {
     if (user) {
       navigate("/dashboard");
     }
   }, [user, navigate]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (formData.password !== formData.confirmPassword) {
+      toast({
+        title: "Error",
+        description: "Passwords do not match",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await authService.signUp(formData.email, formData.password, {
+        farm_name: formData.farmName,
+        location: formData.location,
+        farm_size: parseFloat(formData.farmSize),
+        irrigation_method: formData.irrigationMethod,
+        farming_type: formData.farmingType,
+      });
+      
+      toast({
+        title: "Success!",
+        description: "Account created successfully. Please sign in.",
+      });
+      
+      navigate("/");
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create account",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex items-center justify-center p-4">
