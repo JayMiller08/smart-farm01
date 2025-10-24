@@ -2,13 +2,28 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, User, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { authService } from "@/services/authService";
+import { useToast } from "@/hooks/use-toast";
 
 const Profile = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   
-  const handleLogout = () => {
-    localStorage.removeItem("smartfarm_user");
-    navigate("/");
+  const handleLogout = async () => {
+    try {
+      await authService.signOut();
+      toast({
+        title: "Signed out successfully",
+        description: "You have been logged out of your account.",
+      });
+      navigate("/");
+    } catch (error: any) {
+      toast({
+        title: "Error signing out",
+        description: error.message || "Failed to sign out. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
