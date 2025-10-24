@@ -10,6 +10,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
+import AuthCallback from "./pages/AuthCallback";
 import Dashboard from "./pages/Dashboard";
 import Weather from "./pages/Weather";
 import AIAdvisor from "./pages/AIAdvisor";
@@ -22,7 +23,7 @@ import NotFound from "./pages/NotFound";
 
 const AppContent = () => {
   const location = useLocation();
-  const showNavigation = !["/", "/signup"].includes(location.pathname);
+  const showNavigation = !["/", "/signup", "/auth/callback"].includes(location.pathname);
 
   return (
     <>
@@ -50,6 +51,7 @@ const AppContent = () => {
         <Routes>
           <Route path="/" element={<Login />} />
           <Route path="/signup" element={<SignUp />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       )}

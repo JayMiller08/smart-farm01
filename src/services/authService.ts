@@ -3,7 +3,7 @@ import type { User } from '@supabase/supabase-js';
 
 export const authService = {
   signUp: async (email: string, password: string, metadata?: Record<string, any>) => {
-    const redirectUrl = `${window.location.origin}/dashboard`;
+    const redirectUrl = `${window.location.origin}/auth/callback`;
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -14,6 +14,18 @@ export const authService = {
     });
     if (error) throw error;
     return data;
+  },
+
+  resendConfirmation: async (email: string) => {
+    const redirectUrl = `${window.location.origin}/auth/callback`;
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: {
+        emailRedirectTo: redirectUrl,
+      },
+    });
+    if (error) throw error;
   },
 
   signIn: async (email: string, password: string) => {

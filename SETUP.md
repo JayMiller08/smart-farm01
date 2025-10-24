@@ -68,35 +68,128 @@ ALTER TABLE fields DISABLE ROW LEVEL SECURITY;
 
 ## Authentication Configuration
 
-### Supabase Auth Settings
+### Email Confirmation Setup
 
-For development/testing, enable email auto-confirmation in Supabase settings:
+This app requires users to confirm their email address before signing in. Follow these steps to configure Supabase properly:
 
-1. Go to Authentication > Settings
+#### 1. Supabase Auth Settings
+
+Access your Supabase project dashboard (via Lovable Cloud backend):
+
+1. Navigate to **Authentication > Settings**
+2. Under **Auth Providers**, ensure Email is enabled
+3. **Email Confirmations**: Keep **ENABLED** (required for production security)
+
+#### 2. Site URL Configuration
+
+Set the Site URL to your application's URL:
+
+- **Development**: `http://localhost:5173` or your dev server URL
+- **Production**: Your deployed app URL (e.g., `https://smartfarm.example.com`)
+
+#### 3. Redirect URLs
+
+Add these redirect URLs under **Authentication > URL Configuration**:
+
+- **Development**: `http://localhost:5173/auth/callback`
+- **Production**: `https://yourdomain.com/auth/callback`
+
+**Important**: The redirect URL **must** match what's passed in the `emailRedirectTo` parameter during sign-up.
+
+#### 4. Email Templates (Optional)
+
+Customize the confirmation email template:
+
+1. Go to **Authentication > Email Templates**
+2. Select **Confirm signup** template
+3. Customize the message and styling
+4. Ensure the `{{ .ConfirmationURL }}` variable is present in the template
+
+#### 5. SMTP Configuration (Production)
+
+For production, configure custom SMTP to send emails from your domain:
+
+1. Go to **Project Settings > Auth > SMTP Settings**
+2. Enable custom SMTP
+3. Enter your SMTP credentials:
+   - Host (e.g., `smtp.gmail.com`, `smtp.sendgrid.net`)
+   - Port (usually 587 for TLS)
+   - Username
+   - Password
+   - Sender email and name
+
+**Development Note**: For testing, Supabase provides a built-in email service, but it may have rate limits.
+
+#### 6. Testing Email Confirmations
+
+**Development Testing:**
+
+For faster development testing, you can temporarily disable email confirmations:
+
+1. Go to **Authentication > Settings**
 2. Disable "Enable email confirmations"
-3. This allows immediate login after signup without email verification
+3. Users can sign in immediately after signup
 
-For production, keep email confirmations enabled for security.
+**Important**: Re-enable email confirmations before production deployment.
+
+**Production Testing:**
+
+With email confirmations enabled:
+
+1. Sign up with a test email you can access
+2. Check the inbox for the confirmation email
+3. Click the confirmation link
+4. Verify you're redirected to `/auth/callback` and then to dashboard
+5. Confirm you can access protected routes
 
 ## Manual Testing Guide
 
 ### Test 1: User Authentication
 
 **Sign Up Flow:**
-1. Navigate to `/login` or home page
-2. Click "Sign Up" or toggle to signup mode
-3. Enter email: `test@example.com`
-4. Enter password: `password123` (minimum 6 characters)
-5. Confirm password: `password123`
-6. Click "Sign Up"
-7. **Expected:** User account created, redirected to dashboard or prompted to sign in
+1. Navigate to `/signup` or click "Sign Up" from login page
+2. Fill in all required farm profile fields:
+   - Farm name: "Green Valley Farm"
+   - Email: `test@example.com`
+   - Location: "California"
+   - Farm size: 50 hectares
+   - Irrigation method: Select "Drip"
+   - Farming type: Select "Commercial"
+3. Enter password: `Test123!@#` (must meet requirements)
+4. Confirm password: `Test123!@#`
+5. Click "Create Account"
+6. **Expected:** 
+   - Success message: "Check Your Email"
+   - Page shows confirmation email sent to `test@example.com`
+   - Buttons to "Resend confirmation email" and "Open email app"
 
-**Sign In Flow:**
-1. Navigate to `/login`
-2. Enter the email and password from signup
+**Email Confirmation Flow:**
+1. Check email inbox for confirmation email from Supabase
+2. **If not received:**
+   - Check spam/junk folder
+   - Wait 2-3 minutes
+   - Click "Resend confirmation email" button
+3. Click the confirmation link in the email
+4. **Expected:**
+   - Redirected to `/auth/callback`
+   - Page shows "Email Confirmed!" with success icon
+   - Auto-redirect to dashboard after 2 seconds
+5. **Verify:** 
+   - User is signed in
+   - Dashboard shows farm overview
+   - Protected routes accessible
+
+**Sign In Flow (After Confirmation):**
+1. Navigate to `/` (login page)
+2. Enter confirmed email and password
 3. Click "Sign In"
 4. **Expected:** Successfully authenticated, redirected to dashboard
 5. **Verify:** Dashboard shows user's farm overview
+
+**Sign In Before Confirmation:**
+1. Try to sign in before clicking confirmation link
+2. **Expected:** Error message "Email not confirmed"
+3. **Action:** Check email and click confirmation link first
 
 **Sign Out Flow:**
 1. While logged in, find logout button (usually in profile or settings)
@@ -301,7 +394,14 @@ SELECT id, name FROM fields WHERE name = 'North Field';
 ## Production Checklist
 
 - [ ] RLS policies applied and tested
-- [ ] Email confirmation enabled in Supabase Auth
+- [ ] Email confirmation **enabled** in Supabase Auth settings
+- [ ] Site URL configured correctly in Supabase
+- [ ] Redirect URLs added for production domain (`/auth/callback`)
+- [ ] Custom SMTP configured (or Supabase email service verified)
+- [ ] Email templates customized with branding
+- [ ] Test full sign-up flow with confirmation email
+- [ ] Verify confirmation link redirects properly
+- [ ] Test "resend confirmation" functionality
 - [ ] Environment variables configured for production
 - [ ] Password requirements enforced (min length, complexity)
 - [ ] Error handling implemented for all auth flows
@@ -309,3 +409,4 @@ SELECT id, name FROM fields WHERE name = 'North Field';
 - [ ] User data isolation verified (RLS enforcement)
 - [ ] Input validation on all forms
 - [ ] Proper error messages shown to users
+- [ ] Email deliverability tested (check spam folders)

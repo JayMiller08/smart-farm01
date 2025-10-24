@@ -33,6 +33,9 @@ const SignUp = () => {
     }
   }, [user, navigate]);
 
+  const [isLoading, setIsLoading] = useState(false);
+  const [confirmationEmail, setConfirmationEmail] = useState<string | null>(null);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -45,6 +48,7 @@ const SignUp = () => {
       return;
     }
 
+    setIsLoading(true);
     try {
       await authService.signUp(formData.email, formData.password, {
         farm_name: formData.farmName,
@@ -54,20 +58,109 @@ const SignUp = () => {
         farming_type: formData.farmingType,
       });
       
-      toast({
-        title: "Success!",
-        description: "Account created successfully. Please sign in.",
-      });
-      
-      navigate("/");
+      setConfirmationEmail(formData.email);
     } catch (error: any) {
       toast({
         title: "Error",
         description: error.message || "Failed to create account",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
+
+  const handleResendConfirmation = async () => {
+    if (!confirmationEmail) return;
+    
+    setIsLoading(true);
+    try {
+      await authService.resendConfirmation(confirmationEmail);
+      toast({
+        title: "Email Sent",
+        description: "Confirmation email has been resent. Please check your inbox.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to resend confirmation email",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (confirmationEmail) {
+    const mailtoLink = `mailto:${confirmationEmail}`;
+    
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex items-center justify-center p-4">
+        <Card className="w-full max-w-2xl shadow-elegant">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
+              <Sprout className="h-8 w-8 text-primary" />
+            </div>
+            <CardTitle className="text-3xl">Check Your Email</CardTitle>
+            <CardDescription>We've sent a confirmation link to verify your account</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="p-4 bg-muted rounded-lg">
+              <p className="text-center mb-2">
+                We sent a confirmation link to:
+              </p>
+              <p className="text-center font-semibold text-lg">
+                {confirmationEmail}
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground text-center">
+                Please click the link in your email to verify your account and complete sign-up.
+              </p>
+              
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button 
+                  onClick={handleResendConfirmation} 
+                  variant="outline" 
+                  className="flex-1"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Sending..." : "Resend confirmation email"}
+                </Button>
+                
+                <Button 
+                  asChild 
+                  className="flex-1"
+                >
+                  <a href={mailtoLink}>Open email app</a>
+                </Button>
+              </div>
+            </div>
+
+            <div className="text-sm text-muted-foreground space-y-2 border-t pt-4">
+              <p className="font-medium">Didn't receive the email?</p>
+              <ul className="list-disc list-inside space-y-1 ml-2">
+                <li>Check your spam or junk folder</li>
+                <li>Wait a few minutes and check again</li>
+                <li>Click "Resend confirmation email" above</li>
+              </ul>
+            </div>
+
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => navigate("/")}
+                className="text-sm text-primary hover:underline"
+              >
+                Back to Sign In
+              </button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex items-center justify-center p-4">
@@ -217,8 +310,8 @@ const SignUp = () => {
               </div>
             </div>
 
-            <Button type="submit" className="w-full" size="lg">
-              Create Account
+            <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
+              {isLoading ? "Creating Account..." : "Create Account"}
             </Button>
 
             <p className="text-center text-sm text-muted-foreground">
