@@ -10,7 +10,6 @@ import {
   Zap, 
   AlertTriangle, 
   CheckCircle, 
-  Clock, 
   RefreshCw,
   TrendingUp,
   TrendingDown,
@@ -232,13 +231,10 @@ export const AIRecommendations: React.FC = () => {
   const navigate = useNavigate();
   const [sensorData, setSensorData] = useState<SensorData | null>(null);
   const [recommendations, setRecommendations] = useState<AIRecommendation[]>([]);
-  const [isLive, setIsLive] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   // Fetch sensor data and generate recommendations
   useEffect(() => {
-    if (!isLive) return;
-
     const fetchData = () => {
       const data = generateSensorData();
       setSensorData(data);
@@ -252,7 +248,7 @@ export const AIRecommendations: React.FC = () => {
     const interval = setInterval(fetchData, 10000); // Update every 10 seconds
 
     return () => clearInterval(interval);
-  }, [isLive]);
+  }, []);
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -266,7 +262,7 @@ export const AIRecommendations: React.FC = () => {
   const getPriorityIcon = (priority: string) => {
     switch (priority) {
       case 'high': return <AlertTriangle className="h-3 w-3" />;
-      case 'medium': return <Clock className="h-3 w-3" />;
+      case 'medium': return <Activity className="h-3 w-3" />;
       case 'low': return <CheckCircle className="h-3 w-3" />;
       default: return <Activity className="h-3 w-3" />;
     }
@@ -311,12 +307,9 @@ export const AIRecommendations: React.FC = () => {
             <CardTitle className="text-base md:text-lg">AI Recommendations</CardTitle>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant={isLive ? "default" : "outline"} className="text-xs">
-              {isLive ? "Live" : "Paused"}
-            </Badge>
             {lastUpdated && (
               <span className="text-xs text-muted-foreground">
-                {lastUpdated.toLocaleTimeString()}
+                Last updated: {lastUpdated.toLocaleTimeString()}
               </span>
             )}
           </div>
@@ -380,33 +373,15 @@ export const AIRecommendations: React.FC = () => {
           })
         )}
 
-        <div className="flex gap-2 pt-2">
+        <div className="pt-2">
           <Button
             variant="outline"
             size="sm"
-            className="flex-1"
+            className="w-full"
             onClick={() => navigate("/iot-dashboard")}
           >
             <Activity className="h-4 w-4 mr-2" />
             View Live Sensors
-          </Button>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsLive(!isLive)}
-          >
-            {isLive ? (
-              <>
-                <Clock className="h-4 w-4 mr-2" />
-                Pause
-              </>
-            ) : (
-              <>
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Resume
-              </>
-            )}
           </Button>
         </div>
       </CardContent>
