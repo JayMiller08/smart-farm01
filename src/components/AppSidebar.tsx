@@ -27,7 +27,7 @@ export function AppSidebar() {
   const navigate = useNavigate();
 
   // Placeholder logo: replace src with your logo path if available
-  const logoSrc = "/logo.png"; // or wherever your logo is
+  const logoSrc = ""; // or wherever your logo is
 
   function handleLogout() {
     // Add your logout logic here

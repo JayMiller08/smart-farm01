@@ -3,12 +3,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
-  MapPin, 
   Droplets, 
   Thermometer, 
   Zap, 
@@ -29,10 +26,23 @@ import {
   ArrowDown,
   Minus
 } from 'lucide-react';
-import { SOUTH_AFRICAN_LOCATIONS, getCoordinatesForLocation } from '@/data/southAfricanLocations';
 import { useSoilData } from '@/hooks/useSoilData';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
+
+// IoT Sensor Data Interface (from IoTDashboard)
+interface IoTSensorData {
+  timestamp: string;
+  sensors: {
+    soilMoisture: { value: number; status: string };
+    soilTemperature: { value: number };
+    soilPH: { value: number };
+    airTemperature: { value: number };
+    humidity: { value: number };
+    npk: { nitrogen: number; phosphorus: number; potassium: number };
+  };
+  alerts: Array<{ type: string; message: string; severity: string }>;
+}
 
 interface SoilHealthScore {
   overall: number;
@@ -43,6 +53,7 @@ interface SoilHealthScore {
   };
   recommendations: string[];
   status: 'excellent' | 'good' | 'fair' | 'poor' | 'critical';
+  healthStatus: 'Poor' | 'Moderate' | 'Healthy';
 }
 
 interface SoilHealthData {
@@ -71,16 +82,208 @@ interface HistoricalData {
   date: string;
   score: number;
   status: SoilHealthScore['status'];
+  healthStatus: SoilHealthScore['healthStatus'];
 }
 
-const DEPTH_OPTIONS = [
-  { value: '0-20', label: '0-20 cm (Surface)' },
-  { value: '20-50', label: '20-50 cm (Subsurface)' },
-  { value: '50-100', label: '50-100 cm (Deep)' },
-  { value: '100-200', label: '100-200 cm (Very Deep)' },
-];
 
-// Soil Health Assessment Engine
+// IoT Sensor Data Generator (from IoTDashboard)
+const generateIoTSensorData = (): IoTSensorData => {
+  const soilMoisture = 30 + Math.random() * 30; // 30-60%
+  const status = soilMoisture < 35 ? "critical" : soilMoisture < 45 ? "warning" : "optimal";
+  
+  const alerts = [];
+  if (soilMoisture < 35) {
+    alerts.push({
+      type: "irrigation",
+      message: "Soil moisture below optimal range. Consider irrigation.",
+      severity: "warning"
+    });
+  }
+
+  return {
+    timestamp: new Date().toISOString(),
+    sensors: {
+      soilMoisture: { value: soilMoisture, status },
+      soilTemperature: { value: 20 + Math.random() * 8 }, // 20-28°C
+      soilPH: { value: 6.0 + Math.random() * 1.5 }, // 6.0-7.5
+      airTemperature: { value: 22 + Math.random() * 10 }, // 22-32°C
+      humidity: { value: 50 + Math.random() * 30 }, // 50-80%
+      npk: {
+        nitrogen: 40 + Math.random() * 30,
+        phosphorus: 20 + Math.random() * 20,
+        potassium: 150 + Math.random() * 50
+      }
+    },
+    alerts
+  };
+};
+
+// Soil Health Assessment Engine for IoT Sensor Data
+const calculateSoilHealthFromIoT = (sensorData: IoTSensorData): SoilHealthScore => {
+  const scores = {
+    chemical: 0,
+    physical: 0,
+    biological: 0
+  };
+  
+  const recommendations: string[] = [];
+  
+  // Chemical Health Assessment (pH and NPK)
+  let chemicalScore = 0;
+  let chemicalFactors = 0;
+  
+  // pH Assessment (0-100 points)
+  if (sensorData.sensors.soilPH.value) {
+    chemicalFactors++;
+    if (sensorData.sensors.soilPH.value >= 6.0 && sensorData.sensors.soilPH.value <= 7.5) {
+      chemicalScore += 100;
+    } else if (sensorData.sensors.soilPH.value >= 5.5 && sensorData.sensors.soilPH.value <= 8.0) {
+      chemicalScore += 80;
+    } else if (sensorData.sensors.soilPH.value >= 5.0 && sensorData.sensors.soilPH.value <= 8.5) {
+      chemicalScore += 60;
+    } else {
+      chemicalScore += 30;
+      if (sensorData.sensors.soilPH.value < 5.5) {
+        recommendations.push('Apply lime to raise soil pH to optimal range (6.0-7.5)');
+      } else if (sensorData.sensors.soilPH.value > 7.5) {
+        recommendations.push('Apply sulfur or organic matter to lower soil pH');
+      }
+    }
+  }
+  
+  // NPK Assessment
+  if (sensorData.sensors.npk.nitrogen) {
+    chemicalFactors++;
+    if (sensorData.sensors.npk.nitrogen >= 50) {
+      chemicalScore += 100;
+    } else if (sensorData.sensors.npk.nitrogen >= 30) {
+      chemicalScore += 80;
+    } else if (sensorData.sensors.npk.nitrogen >= 20) {
+      chemicalScore += 60;
+    } else {
+      chemicalScore += 30;
+      recommendations.push('Apply nitrogen-rich fertilizer (urea or ammonium nitrate)');
+    }
+  }
+  
+  if (sensorData.sensors.npk.phosphorus) {
+    chemicalFactors++;
+    if (sensorData.sensors.npk.phosphorus >= 25) {
+      chemicalScore += 100;
+    } else if (sensorData.sensors.npk.phosphorus >= 15) {
+      chemicalScore += 80;
+    } else if (sensorData.sensors.npk.phosphorus >= 10) {
+      chemicalScore += 60;
+    } else {
+      chemicalScore += 30;
+      recommendations.push('Apply phosphorus-rich fertilizer (superphosphate)');
+    }
+  }
+  
+  if (sensorData.sensors.npk.potassium) {
+    chemicalFactors++;
+    if (sensorData.sensors.npk.potassium >= 150) {
+      chemicalScore += 100;
+    } else if (sensorData.sensors.npk.potassium >= 100) {
+      chemicalScore += 80;
+    } else if (sensorData.sensors.npk.potassium >= 75) {
+      chemicalScore += 60;
+    } else {
+      chemicalScore += 30;
+      recommendations.push('Apply potassium-rich fertilizer (potassium chloride)');
+    }
+  }
+  
+  scores.chemical = chemicalFactors > 0 ? chemicalScore / chemicalFactors : 0;
+  
+  // Physical Health Assessment (Soil Moisture and Temperature)
+  let physicalScore = 0;
+  let physicalFactors = 0;
+  
+  // Soil Moisture Assessment
+  if (sensorData.sensors.soilMoisture.value) {
+    physicalFactors++;
+    if (sensorData.sensors.soilMoisture.value >= 45 && sensorData.sensors.soilMoisture.value <= 60) {
+      physicalScore += 100;
+    } else if (sensorData.sensors.soilMoisture.value >= 35 && sensorData.sensors.soilMoisture.value <= 70) {
+      physicalScore += 80;
+    } else if (sensorData.sensors.soilMoisture.value >= 25 && sensorData.sensors.soilMoisture.value <= 80) {
+      physicalScore += 60;
+    } else {
+      physicalScore += 30;
+      if (sensorData.sensors.soilMoisture.value < 35) {
+        recommendations.push('Irrigate soil - moisture levels are too low');
+      } else if (sensorData.sensors.soilMoisture.value > 70) {
+        recommendations.push('Improve drainage - soil is too wet');
+      }
+    }
+  }
+  
+  // Soil Temperature Assessment
+  if (sensorData.sensors.soilTemperature.value) {
+    physicalFactors++;
+    if (sensorData.sensors.soilTemperature.value >= 20 && sensorData.sensors.soilTemperature.value <= 25) {
+      physicalScore += 100;
+    } else if (sensorData.sensors.soilTemperature.value >= 15 && sensorData.sensors.soilTemperature.value <= 30) {
+      physicalScore += 80;
+    } else if (sensorData.sensors.soilTemperature.value >= 10 && sensorData.sensors.soilTemperature.value <= 35) {
+      physicalScore += 60;
+    } else {
+      physicalScore += 30;
+      if (sensorData.sensors.soilTemperature.value < 15) {
+        recommendations.push('Consider soil warming techniques');
+      } else if (sensorData.sensors.soilTemperature.value > 30) {
+        recommendations.push('Implement soil cooling measures');
+      }
+    }
+  }
+  
+  scores.physical = physicalFactors > 0 ? physicalScore / physicalFactors : 0;
+  
+  // Biological Health Assessment (based on soil moisture and temperature)
+  if (sensorData.sensors.soilMoisture.value && sensorData.sensors.soilTemperature.value) {
+    const moistureScore = sensorData.sensors.soilMoisture.value >= 40 && sensorData.sensors.soilMoisture.value <= 60 ? 100 : 60;
+    const tempScore = sensorData.sensors.soilTemperature.value >= 20 && sensorData.sensors.soilTemperature.value <= 25 ? 100 : 60;
+    scores.biological = (moistureScore + tempScore) / 2;
+    
+    if (scores.biological < 80) {
+      recommendations.push('Improve soil biological activity by maintaining optimal moisture and temperature');
+    }
+  } else {
+    scores.biological = 50; // Default if no data
+  }
+  
+  // Calculate overall score
+  const overallScore = (scores.chemical + scores.physical + scores.biological) / 3;
+  
+  // Determine status
+  let status: SoilHealthScore['status'];
+  if (overallScore >= 90) status = 'excellent';
+  else if (overallScore >= 75) status = 'good';
+  else if (overallScore >= 60) status = 'fair';
+  else if (overallScore >= 40) status = 'poor';
+  else status = 'critical';
+  
+  // Determine simplified health status
+  let healthStatus: SoilHealthScore['healthStatus'];
+  if (overallScore >= 70) healthStatus = 'Healthy';
+  else if (overallScore >= 40) healthStatus = 'Moderate';
+  else healthStatus = 'Poor';
+  
+  return {
+    overall: Math.round(overallScore),
+    categories: {
+      chemical: Math.round(scores.chemical),
+      physical: Math.round(scores.physical),
+      biological: Math.round(scores.biological)
+    },
+    recommendations,
+    status,
+    healthStatus
+  };
+};
+
+// Soil Health Assessment Engine (Original API-based)
 const calculateSoilHealthScore = (properties: any): SoilHealthScore => {
   const scores = {
     chemical: 0,
@@ -236,6 +439,13 @@ const calculateSoilHealthScore = (properties: any): SoilHealthScore => {
   else if (overallScore >= 40) status = 'poor';
   else status = 'critical';
   
+  // Determine simplified health status
+  let healthStatus: SoilHealthScore['healthStatus'];
+  if (overallScore >= 70) healthStatus = 'Healthy';
+  else if (overallScore >= 40) healthStatus = 'Moderate';
+  else healthStatus = 'Poor';
+  
+  
   return {
     overall: Math.round(overallScore),
     categories: {
@@ -244,7 +454,8 @@ const calculateSoilHealthScore = (properties: any): SoilHealthScore => {
       biological: Math.round(scores.biological)
     },
     recommendations,
-    status
+    status,
+    healthStatus
   };
 };
 
@@ -270,6 +481,24 @@ const getStatusIcon = (status: SoilHealthScore['status']) => {
   }
 };
 
+const getHealthStatusColor = (healthStatus: SoilHealthScore['healthStatus']) => {
+  switch (healthStatus) {
+    case 'Healthy': return 'text-green-600 bg-green-50 border-green-200';
+    case 'Moderate': return 'text-yellow-600 bg-yellow-50 border-yellow-200';
+    case 'Poor': return 'text-red-600 bg-red-50 border-red-200';
+    default: return 'text-gray-600 bg-gray-50 border-gray-200';
+  }
+};
+
+const getHealthStatusIcon = (healthStatus: SoilHealthScore['healthStatus']) => {
+  switch (healthStatus) {
+    case 'Healthy': return <CheckCircle className="h-6 w-6" />;
+    case 'Moderate': return <Activity className="h-6 w-6" />;
+    case 'Poor': return <AlertTriangle className="h-6 w-6" />;
+    default: return <Info className="h-6 w-6" />;
+  }
+};
+
 // Generate mock historical data
 const generateHistoricalData = (currentScore: number): HistoricalData[] => {
   const data: HistoricalData[] = [];
@@ -290,14 +519,71 @@ const generateHistoricalData = (currentScore: number): HistoricalData[] => {
     else if (historicalScore >= 40) status = 'poor';
     else status = 'critical';
     
+    let healthStatus: SoilHealthScore['healthStatus'];
+    if (historicalScore >= 70) healthStatus = 'Healthy';
+    else if (historicalScore >= 40) healthStatus = 'Moderate';
+    else healthStatus = 'Poor';
+    
     data.push({
       date: date.toISOString().split('T')[0],
       score: Math.round(historicalScore),
-      status
+      status,
+      healthStatus
     });
   }
   
   return data;
+};
+
+// Simplified Soil Health Status Card Component
+const SoilHealthStatusCard: React.FC<{ healthData: SoilHealthData }> = ({ healthData }) => {
+  return (
+    <Card className="border-2 shadow-lg">
+      <CardHeader className="pb-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Leaf className="h-6 w-6 text-primary" />
+            <CardTitle className="text-xl">Soil Health Status</CardTitle>
+          </div>
+          <Badge variant="outline" className="text-xs">
+            <Calendar className="h-3 w-3 mr-1" />
+            {new Date(healthData.timestamp).toLocaleDateString()}
+          </Badge>
+        </div>
+        <CardDescription>
+          Analysis completed for {healthData.location} at {healthData.depth}
+        </CardDescription>
+      </CardHeader>
+      
+      <CardContent>
+        <div className={`p-8 rounded-xl border-2 ${getHealthStatusColor(healthData.healthScore.healthStatus)}`}>
+          <div className="flex items-center justify-center mb-6">
+            <div className="text-center">
+              <div className="flex justify-center mb-4">
+                {getHealthStatusIcon(healthData.healthScore.healthStatus)}
+              </div>
+              <div className="text-6xl font-bold mb-2">
+                {healthData.healthScore.healthStatus}
+              </div>
+              <div className="text-lg font-medium">
+                Soil Health
+              </div>
+            </div>
+          </div>
+          
+          <div className="text-center">
+            <div className="text-3xl font-bold mb-2">
+              {healthData.healthScore.overall}/100
+            </div>
+            <div className="text-sm text-muted-foreground mb-4">
+              Overall Health Score
+            </div>
+            <Progress value={healthData.healthScore.overall} className="h-3" />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
 };
 
 // Soil Health Display Card Component
@@ -524,116 +810,56 @@ export default function SoilAnalysis() {
   const { toast } = useToast();
   const { data, loading, error, getMultipleSoilProperties, clearData } = useSoilData();
   
-  const [selectedProvince, setSelectedProvince] = useState<string>('');
-  const [selectedLocation, setSelectedLocation] = useState<string>('');
-  const [selectedLocationType, setSelectedLocationType] = useState<string>('');
-  const [selectedDepth, setSelectedDepth] = useState('0-20');
   const [soilHealthData, setSoilHealthData] = useState<SoilHealthData | null>(null);
   const [historicalData, setHistoricalData] = useState<HistoricalData[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [ioTSensorData, setIoTSensorData] = useState<IoTSensorData | null>(null);
 
-  const provinces = Object.keys(SOUTH_AFRICAN_LOCATIONS);
-  const locationTypes = selectedProvince ? Object.keys(SOUTH_AFRICAN_LOCATIONS[selectedProvince as keyof typeof SOUTH_AFRICAN_LOCATIONS]) : [];
-  const locations = selectedProvince && selectedLocationType ? 
-    Object.keys((SOUTH_AFRICAN_LOCATIONS as any)[selectedProvince]?.[selectedLocationType] || {}) : [];
-
-  const handleProvinceChange = (province: string) => {
-    setSelectedProvince(province);
-    setSelectedLocationType('');
-    setSelectedLocation('');
-  };
-
-  const handleLocationTypeChange = (locationType: string) => {
-    setSelectedLocationType(locationType);
-    setSelectedLocation('');
-  };
-
-  const handleLocationChange = (location: string) => {
-    setSelectedLocation(location);
-  };
-
-  const getCurrentCoordinates = () => {
-    if (selectedProvince && selectedLocation) {
-      return getCoordinatesForLocation(selectedProvince, selectedLocation);
-    }
-    return null;
-  };
-
-  const isLocationValid = () => {
-    const coords = getCurrentCoordinates();
-    return coords && coords.lat && coords.lon && coords.lat !== 0 && coords.lon !== 0;
-  };
-
-  const analyzeSoilHealth = async () => {
-    if (!isLocationValid()) {
-      toast({
-        title: "Location Required",
-        description: "Please select a valid location before analyzing soil health",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsAnalyzing(true);
-    try {
-      const coordinates = getCurrentCoordinates()!;
+  // Generate IoT sensor data on component mount
+  useEffect(() => {
+    const generateData = () => {
+      const sensorData = generateIoTSensorData();
+      setIoTSensorData(sensorData);
       
-      // Get all soil properties
-      const properties = ['ph', 'organic_carbon', 'nitrogen', 'phosphorus', 'potassium', 'calcium', 'magnesium', 'sodium', 'cec', 'sand', 'silt', 'clay'];
+      // Calculate soil health from IoT data
+      const healthScore = calculateSoilHealthFromIoT(sensorData);
       
-      await getMultipleSoilProperties(coordinates.lat, coordinates.lon, properties, selectedDepth);
+      const healthData: SoilHealthData = {
+        location: "IoT Sensor Field",
+        coordinates: { lat: -26.2041, lon: 28.0473 }, // Johannesburg coordinates
+        depth: "0-20",
+        timestamp: sensorData.timestamp,
+        properties: {
+          ph: sensorData.sensors.soilPH.value,
+          organic_carbon: 1.5, // Default value
+          nitrogen: sensorData.sensors.npk.nitrogen,
+          phosphorus: sensorData.sensors.npk.phosphorus,
+          potassium: sensorData.sensors.npk.potassium,
+          calcium: 0,
+          magnesium: 0,
+          sodium: 0,
+          cec: 0,
+          sand: 0,
+          silt: 0,
+          clay: 0,
+        },
+        healthScore
+      };
       
-      // Wait for data to be available
-      setTimeout(() => {
-        if (data) {
-          const healthScore = calculateSoilHealthScore(data.property);
-          
-          const healthData: SoilHealthData = {
-            location: `${selectedLocation}, ${selectedProvince}`,
-            coordinates,
-            depth: selectedDepth,
-            timestamp: new Date().toISOString(),
-            properties: {
-              ph: data.property.ph?.[0]?.value?.value || 0,
-              organic_carbon: data.property.organic_carbon?.[0]?.value?.value || 0,
-              nitrogen: data.property.nitrogen?.[0]?.value?.value || 0,
-              phosphorus: data.property.phosphorus?.[0]?.value?.value || 0,
-              potassium: data.property.potassium?.[0]?.value?.value || 0,
-              calcium: data.property.calcium?.[0]?.value?.value || 0,
-              magnesium: data.property.magnesium?.[0]?.value?.value || 0,
-              sodium: data.property.sodium?.[0]?.value?.value || 0,
-              cec: data.property.cec?.[0]?.value?.value || 0,
-              sand: data.property.sand?.[0]?.value?.value || 0,
-              silt: data.property.silt?.[0]?.value?.value || 0,
-              clay: data.property.clay?.[0]?.value?.value || 0,
-            },
-            healthScore
-          };
-          
-          setSoilHealthData(healthData);
-          
-          // Generate historical data
-          const historical = generateHistoricalData(healthScore.overall);
-          setHistoricalData(historical);
-          
-          toast({
-            title: "Soil Health Analysis Complete",
-            description: `Overall health score: ${healthScore.overall}/100 (${healthScore.status})`,
-          });
-        }
-        setIsAnalyzing(false);
-      }, 2000);
+      setSoilHealthData(healthData);
       
-    } catch (error) {
-      console.error('Soil health analysis failed:', error);
-      toast({
-        title: "Analysis Failed",
-        description: "Failed to analyze soil health. Please try again.",
-        variant: "destructive",
-      });
-      setIsAnalyzing(false);
-    }
-  };
+      // Generate historical data
+      const historical = generateHistoricalData(healthScore.overall);
+      setHistoricalData(historical);
+    };
+
+    generateData(); // Initial generation
+    
+    // Update every 10 seconds
+    const interval = setInterval(generateData, 10000);
+    
+    return () => clearInterval(interval);
+  }, []);
 
   const askAIAboutSoilHealth = () => {
     if (!soilHealthData) {
@@ -712,162 +938,6 @@ Please provide detailed farming recommendations based on this soil health analys
       </header>
 
       <main className="container mx-auto px-3 md:px-4 py-4 md:py-6 space-y-4 md:space-y-6">
-        
-        {/* Location Selection */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MapPin className="h-5 w-5" />
-              Select Analysis Location
-            </CardTitle>
-            <CardDescription>
-              Choose your South African province and specific location for soil health analysis
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Province Selection */}
-              <div className="space-y-2">
-                <Label htmlFor="province">Province</Label>
-                <Select value={selectedProvince} onValueChange={handleProvinceChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Province" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {provinces.map((province) => (
-                      <SelectItem key={province} value={province}>
-                        {province}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Location Type Selection */}
-              <div className="space-y-2">
-                <Label htmlFor="locationType">Area Type</Label>
-                <Select 
-                  value={selectedLocationType} 
-                  onValueChange={handleLocationTypeChange}
-                  disabled={!selectedProvince}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Area Type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {locationTypes.map((locationType) => (
-                      <SelectItem key={locationType} value={locationType}>
-                        {locationType}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Specific Location Selection */}
-              <div className="space-y-2">
-                <Label htmlFor="location">City/Rural Area</Label>
-                <Select 
-                  value={selectedLocation} 
-                  onValueChange={handleLocationChange}
-                  disabled={!selectedLocationType}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Location" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {locations.map((location) => (
-                      <SelectItem key={location} value={location}>
-                        {location}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* Depth Selection */}
-            <div className="space-y-2">
-              <Label>Analysis Depth</Label>
-              <Select value={selectedDepth} onValueChange={setSelectedDepth}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select soil depth" />
-                </SelectTrigger>
-                <SelectContent>
-                  {DEPTH_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Selected Location Display */}
-            {selectedProvince && selectedLocation && (
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
-                <div className="flex items-start gap-2">
-                  <MapPin className="h-4 w-4 text-blue-600 mt-0.5" />
-                  <div className="text-sm">
-                    <p className="font-medium text-blue-900">Analysis Location</p>
-                    <p className="text-blue-700">
-                      {selectedLocation}, {selectedProvince} • {DEPTH_OPTIONS.find(d => d.value === selectedDepth)?.label}
-                    </p>
-                    {getCurrentCoordinates() && (
-                      <p className="text-blue-600 text-xs mt-1">
-                        Coordinates: {getCurrentCoordinates()?.lat.toFixed(4)}, {getCurrentCoordinates()?.lon.toFixed(4)}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Analysis Button */}
-            <div className="flex gap-2">
-              <Button 
-                onClick={analyzeSoilHealth} 
-                disabled={!isLocationValid() || isAnalyzing}
-                className="flex-1"
-                size="lg"
-              >
-                {isAnalyzing ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Analyzing Soil Health...
-                  </>
-                ) : (
-                  <>
-                    <BarChart3 className="h-4 w-4 mr-2" />
-                    Analyze Soil Health
-                  </>
-                )}
-              </Button>
-              
-              {soilHealthData && (
-                <Button 
-                  onClick={askAIAboutSoilHealth}
-                  variant="outline"
-                  size="lg"
-                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0"
-                >
-                  <Zap className="h-4 w-4 mr-2" />
-                  Ask AI
-                </Button>
-              )}
-            </div>
-
-            {/* Location Validation Notice */}
-            {!isLocationValid() && (
-              <Alert>
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>
-                  Please select a province, area type, and specific location to begin soil health analysis.
-                </AlertDescription>
-              </Alert>
-            )}
-          </CardContent>
-        </Card>
 
         {/* Error Display */}
         {error && (
@@ -876,6 +946,86 @@ Please provide detailed farming recommendations based on this soil health analys
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
+
+        {/* Soil Health Status Card - Using IoT Sensor Data */}
+        <Card className="border-2 shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Activity className="h-5 w-5" />
+              Soil Health Status (IoT Sensors)
+            </CardTitle>
+            <CardDescription>
+              Real-time soil health analysis from IoT sensors
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {soilHealthData && ioTSensorData ? (
+              (() => {
+                const healthStatus = soilHealthData.healthScore.healthStatus || 
+                  (soilHealthData.healthScore.overall >= 70 ? 'Healthy' : 
+                   soilHealthData.healthScore.overall >= 40 ? 'Moderate' : 'Poor');
+                const statusColor = getHealthStatusColor(healthStatus);
+                
+                return (
+                  <div className="space-y-4">
+                    <div className={`p-8 rounded-xl border-2 ${statusColor}`}>
+                      <div className="text-center">
+                        <div className="text-6xl font-bold mb-2">
+                          {healthStatus}
+                        </div>
+                        <div className="text-lg font-medium">Soil Health</div>
+                        <div className="text-3xl font-bold mt-4">
+                          {soilHealthData.healthScore.overall}/100
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* IoT Sensor Values */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <div className="p-3 border rounded-lg text-center bg-white">
+                        <div className="text-sm text-muted-foreground mb-1">Soil Moisture</div>
+                        <div className="text-lg font-bold text-blue-600">
+                          {ioTSensorData.sensors.soilMoisture.value.toFixed(1)}%
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {ioTSensorData.sensors.soilMoisture.status}
+                        </div>
+                      </div>
+                      <div className="p-3 border rounded-lg text-center bg-white">
+                        <div className="text-sm text-muted-foreground mb-1">Soil pH</div>
+                        <div className="text-lg font-bold text-green-600">
+                          {ioTSensorData.sensors.soilPH.value.toFixed(1)}
+                        </div>
+                        <div className="text-xs text-muted-foreground">pH</div>
+                      </div>
+                      <div className="p-3 border rounded-lg text-center bg-white">
+                        <div className="text-sm text-muted-foreground mb-1">Soil Temp</div>
+                        <div className="text-lg font-bold text-orange-600">
+                          {ioTSensorData.sensors.soilTemperature.value.toFixed(1)}°C
+                        </div>
+                        <div className="text-xs text-muted-foreground">Temperature</div>
+                      </div>
+                      <div className="p-3 border rounded-lg text-center bg-white">
+                        <div className="text-sm text-muted-foreground mb-1">Nitrogen</div>
+                        <div className="text-lg font-bold text-purple-600">
+                          {ioTSensorData.sensors.npk.nitrogen.toFixed(0)}
+                        </div>
+                        <div className="text-xs text-muted-foreground">ppm</div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()
+            ) : (
+              <div className="p-8 rounded-xl border-2 text-gray-600 bg-gray-50 border-gray-200">
+                <div className="text-center">
+                  <div className="text-6xl font-bold mb-2">Loading...</div>
+                  <div className="text-lg font-medium">Initializing IoT sensors</div>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Soil Health Dashboard Card */}
         {soilHealthData && (
