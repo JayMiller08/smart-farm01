@@ -26,9 +26,6 @@ export function AppSidebar() {
   const { open } = useSidebar();
   const navigate = useNavigate();
 
-  // Placeholder logo: replace src with your logo path if available
-  const logoSrc = ""; // or wherever your logo is
-
   function handleLogout() {
     // Add your logout logic here
     // For now, just redirect to login
@@ -38,14 +35,13 @@ export function AppSidebar() {
   return (
   <Sidebar collapsible="icon" className="border-r flex flex-col h-full bg-green-200">
       <SidebarContent className="flex flex-col h-full">
-        {/* Logo and Title */}
+        {/* Title */}
         <div className="flex flex-col items-center pt-6 pb-2">
-          <img src={logoSrc} alt="Logo" className="h-12 w-12 mb-2" />
           <SidebarGroupLabel>
             <span className="text-green-800 font-bold text-lg">Smart Farm</span>
           </SidebarGroupLabel>
         </div>
-  {/* Space between logo/title and menu */}
+  {/* Space between title and menu */}
   <div className="mb-2" />
         {/* Menu */}
         <SidebarGroupContent className="flex-1">
