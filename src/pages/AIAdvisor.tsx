@@ -3,17 +3,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Send, Loader2, Bot, User, TestTube, Trash2 } from "lucide-react";
+import { ArrowLeft, Send, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useAIChat, ChatMessage } from "@/hooks/useAIChat";
 
+interface Message {
+  role: "user" | "assistant";
+  content: string;
+  timestamp: string;
+}
 
 const AIAdvisor = () => {
   const navigate = useNavigate();
-  const { messages, loading, error, sendMessage, clearMessages, loadMessages, testConnection } = useAIChat();
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
-  const [connectionStatus, setConnectionStatus] = useState<'unknown' | 'connected' | 'disconnected'>('unknown');
+  const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const suggestedQuestions = [
@@ -21,24 +24,15 @@ const AIAdvisor = () => {
     "How much water does my citrus crop need?",
     "My plants have yellow leaves, what's wrong?",
     "Best fertilizer schedule for tomatoes?",
-    "How to improve soil health naturally?",
-    "What crops grow best in my climate?",
-    "How to prevent common plant diseases?",
-    "When is the best time to harvest?",
   ];
 
   useEffect(() => {
     // Load chat history from localStorage
     const saved = localStorage.getItem("smartfarm_chat");
     if (saved) {
-      try {
-        const parsedMessages: ChatMessage[] = JSON.parse(saved);
-        loadMessages(parsedMessages);
-      } catch (error) {
-        console.error('Failed to load chat history:', error);
-      }
+      setMessages(JSON.parse(saved));
     }
-  }, [loadMessages]);
+  }, []);
 
   useEffect(() => {
     // Save to localStorage
@@ -46,15 +40,6 @@ const AIAdvisor = () => {
       localStorage.setItem("smartfarm_chat", JSON.stringify(messages));
     }
   }, [messages]);
-
-  // Test connection on component mount
-  useEffect(() => {
-    const testApiConnection = async () => {
-      const isConnected = await testConnection();
-      setConnectionStatus(isConnected ? 'connected' : 'disconnected');
-    };
-    testApiConnection();
-  }, [testConnection]);
 
   useEffect(() => {
     // Auto-scroll to bottom
@@ -67,70 +52,42 @@ const AIAdvisor = () => {
     const messageText = question || input;
     if (!messageText.trim()) return;
 
+    const userMessage: Message = {
+      role: "user",
+      content: messageText,
+      timestamp: new Date().toISOString(),
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
     setInput("");
-    await sendMessage(messageText);
-  };
+    setIsLoading(true);
 
-  const handleTestConnection = async () => {
-    const isConnected = await testConnection();
-    setConnectionStatus(isConnected ? 'connected' : 'disconnected');
-  };
-
-  const handleClearChat = () => {
-    clearMessages();
-    localStorage.removeItem("smartfarm_chat");
+    // Simulate AI response (will be replaced with real API)
+    setTimeout(() => {
+      const aiMessage: Message = {
+        role: "assistant",
+        content: `Thank you for your question about "${messageText}". As your AI farm advisor, I recommend checking your local weather conditions and soil moisture levels. For Mpumalanga's climate, consider the seasonal patterns and ensure proper irrigation scheduling. Would you like more specific advice?`,
+        timestamp: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, aiMessage]);
+      setIsLoading(false);
+    }, 1500);
   };
 
   return (
     <div className="min-h-screen bg-muted/30 flex flex-col">
       {/* Header */}
       <header className="bg-card border-b shadow-soft">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div>
-              <h1 className="text-xl font-bold">AI Farm Advisor</h1>
-              <p className="text-sm text-muted-foreground">Your 24/7 farming assistant</p>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <Badge 
-              variant={connectionStatus === 'connected' ? 'default' : connectionStatus === 'disconnected' ? 'destructive' : 'secondary'}
-              className="flex items-center gap-1"
-            >
-              <Bot className="h-3 w-3" />
-              {connectionStatus === 'connected' ? 'Connected' : connectionStatus === 'disconnected' ? 'Disconnected' : 'Testing...'}
-            </Badge>
-            
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleTestConnection}
-              disabled={loading}
-            >
-              <TestTube className="h-4 w-4 mr-1" />
-              Test
-            </Button>
-            
-            {messages.length > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleClearChat}
-                disabled={loading}
-              >
-                <Trash2 className="h-4 w-4 mr-1" />
-                Clear
-              </Button>
-            )}
+        <div className="container mx-auto px-4 py-4 flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-xl font-bold">AI Farm Advisor</h1>
+            <p className="text-sm text-muted-foreground">Your 24/7 farming assistant</p>
           </div>
         </div>
       </header>
-
-      
 
       {/* Chat Area */}
       <div className="flex-1 container mx-auto px-4 py-4 flex flex-col">
@@ -171,36 +128,17 @@ const AIAdvisor = () => {
                           : "bg-muted"
                       }`}
                     >
-                      <div className="flex items-start gap-2">
-                        {msg.role === "assistant" && (
-                          <Bot className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                        )}
-                        {msg.role === "user" && (
-                          <User className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                        )}
-                        <div className="flex-1">
-                          <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                          <p className="text-xs opacity-70 mt-1">
-                            {new Date(msg.timestamp).toLocaleTimeString()}
-                          </p>
-                        </div>
-                      </div>
+                      <p className="text-sm">{msg.content}</p>
+                      <p className="text-xs opacity-70 mt-1">
+                        {new Date(msg.timestamp).toLocaleTimeString()}
+                      </p>
                     </div>
                   </div>
                 ))}
-                {loading && (
+                {isLoading && (
                   <div className="flex justify-start">
-                    <div className="bg-muted rounded-lg p-3 flex items-center gap-2">
-                      <Bot className="h-4 w-4" />
+                    <div className="bg-muted rounded-lg p-3">
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      <span className="text-sm text-muted-foreground">AI is thinking...</span>
-                    </div>
-                  </div>
-                )}
-                {error && (
-                  <div className="flex justify-start">
-                    <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 max-w-[80%]">
-                      <p className="text-sm text-destructive">{error}</p>
                     </div>
                   </div>
                 )}
@@ -220,9 +158,9 @@ const AIAdvisor = () => {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   placeholder="Ask your farming question..."
-                  disabled={loading}
+                  disabled={isLoading}
                 />
-                <Button type="submit" disabled={loading || !input.trim()} size="icon">
+                <Button type="submit" disabled={isLoading || !input.trim()} size="icon">
                   <Send className="h-4 w-4" />
                 </Button>
               </form>
