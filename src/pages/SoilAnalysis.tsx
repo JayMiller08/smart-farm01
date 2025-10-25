@@ -68,7 +68,8 @@ export default function SoilAnalysis() {
         </CardContent>
       </Card>
 
-      
+      {/* API Test Suite */}
+      <ISDAApiTest />
 
       {/* Soil Properties Widget */}
       <SoilPropertiesWidget />
