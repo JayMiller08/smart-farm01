@@ -11,7 +11,7 @@
 // API Configuration
 const OPENROUTER_CONFIG = {
   baseUrl: 'https://openrouter.ai/api/v1',
-  apiKey: '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',
+  apiKey: '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',
   model: 'gpt-4o-mini',
 };
 
