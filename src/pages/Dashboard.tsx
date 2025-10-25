@@ -4,6 +4,7 @@ import { CloudRain, Calculator, Bug, Sprout, Bell, Radio } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import WeatherWidget from "@/components/WeatherWidget";
 import { FarmOverview } from "@/components/FarmOverview";
+import { AIRecommendations } from "@/components/AIRecommendations";
 import { useAuth } from "@/hooks/useAuth";
 import { useFarm } from "@/hooks/useFarm";
 
@@ -81,8 +82,12 @@ const Dashboard = () => {
       </header>
 
       <main className="container mx-auto px-3 md:px-4 py-4 md:py-6 space-y-4 md:space-y-6">
+
         {/* Weather Widget */}
         <WeatherWidget />
+
+        {/* AI Recommendations - Real-time based on IoT sensor data */}
+        <AIRecommendations />
 
         {/* Quick Farming Tips */}
         <div className="space-y-3">

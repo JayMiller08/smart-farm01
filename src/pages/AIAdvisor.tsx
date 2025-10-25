@@ -35,6 +35,30 @@ const AIAdvisor = () => {
   }, []);
 
   useEffect(() => {
+    // Check for soil analysis data from SoilAnalysis page
+    const soilAnalysisData = sessionStorage.getItem('soilAnalysisData');
+    if (soilAnalysisData) {
+      try {
+        const data = JSON.parse(soilAnalysisData);
+        
+        // Use the comprehensive prompt if available, otherwise create a basic one
+        const soilAnalysisMessage = data.prompt || `I have soil analysis data for ${data.location} at ${data.depth} depth. Here are the soil properties found:
+
+${data.properties.map(prop => `• ${prop.name}: ${prop.value} ${prop.unit || ''}`).join('\n')}
+
+Please analyze this soil data and provide farming recommendations.`;
+        
+        setInput(soilAnalysisMessage);
+        
+        // Clear the session storage after using it
+        sessionStorage.removeItem('soilAnalysisData');
+      } catch (error) {
+        console.error("Failed to parse soil analysis data:", error);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
     // Save to localStorage
     if (messages.length > 0) {
       localStorage.setItem("smartfarm_chat", JSON.stringify(messages));

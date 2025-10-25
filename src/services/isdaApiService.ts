@@ -67,10 +67,14 @@ class ISDAApiService {
   private async authenticate(): Promise<string> {
     // Check if we have a valid token
     if (this.accessToken && this.tokenExpiry && Date.now() < this.tokenExpiry) {
+      console.log('ISDA API: Using existing valid token');
       return this.accessToken;
     }
 
     try {
+      console.log('ISDA API: Starting authentication...');
+      console.log('ISDA API: Auth URL:', `${ISDA_CONFIG.baseUrl}/login`);
+      
       const response = await fetch(`${ISDA_CONFIG.baseUrl}/login`, {
         method: 'POST',
         headers: {
@@ -82,19 +86,33 @@ class ISDAApiService {
         }),
       });
 
+      console.log('ISDA API: Auth response status:', response.status, response.statusText);
+      console.log('ISDA API: Auth response headers:', Object.fromEntries(response.headers.entries()));
+
       if (!response.ok) {
-        throw new Error(`Authentication failed: ${response.status} ${response.statusText}`);
+        const errorText = await response.text();
+        console.error('ISDA API: Auth error response:', errorText);
+        throw new Error(`Authentication failed: ${response.status} ${response.statusText}. Response: ${errorText}`);
       }
 
       const data: ISDALoginResponse = await response.json();
+      console.log('ISDA API: Auth success data:', { 
+        tokenType: data.token_type, 
+        expiresIn: data.expires_in,
+        hasAccessToken: !!data.access_token 
+      });
       
       this.accessToken = data.access_token;
       this.tokenExpiry = Date.now() + ISDA_CONFIG.tokenExpiry;
       
+      console.log('ISDA API: Token stored, expires at:', new Date(this.tokenExpiry).toISOString());
       return this.accessToken;
     } catch (error) {
       console.error('ISDA API Authentication Error:', error);
-      throw new Error('Failed to authenticate with ISDA API');
+      if (error instanceof Error) {
+        throw new Error(`Failed to authenticate with ISDA API: ${error.message}`);
+      }
+      throw new Error('Failed to authenticate with ISDA API: Unknown error');
     }
   }
 
@@ -103,13 +121,18 @@ class ISDAApiService {
    */
   async getSoilProperty(request: SoilPropertyRequest): Promise<ISDASoilPropertyResponse> {
     try {
+      console.log('ISDA API: Starting soil property request:', request);
+      
       const token = await this.authenticate();
+      console.log('ISDA API: Authentication successful, token length:', token.length);
       
       const url = new URL(`${ISDA_CONFIG.baseUrl}/isdasoil/v2/soilproperty`);
       url.searchParams.append('lat', request.lat.toString());
       url.searchParams.append('lon', request.lon.toString());
       url.searchParams.append('property', request.property);
       url.searchParams.append('depth', request.depth);
+
+      console.log('ISDA API: Request URL:', url.toString());
 
       const response = await fetch(url.toString(), {
         method: 'GET',
@@ -119,15 +142,24 @@ class ISDAApiService {
         },
       });
 
+      console.log('ISDA API: Response status:', response.status, response.statusText);
+      console.log('ISDA API: Response headers:', Object.fromEntries(response.headers.entries()));
+
       if (!response.ok) {
-        throw new Error(`Soil property request failed: ${response.status} ${response.statusText}`);
+        const errorText = await response.text();
+        console.error('ISDA API: Error response body:', errorText);
+        throw new Error(`Soil property request failed: ${response.status} ${response.statusText}. Response: ${errorText}`);
       }
 
       const data: ISDASoilPropertyResponse = await response.json();
+      console.log('ISDA API: Success response data:', data);
       return data;
     } catch (error) {
       console.error('ISDA API Soil Property Error:', error);
-      throw new Error('Failed to retrieve soil property data');
+      if (error instanceof Error) {
+        throw new Error(`Failed to retrieve soil property data: ${error.message}`);
+      }
+      throw new Error('Failed to retrieve soil property data: Unknown error');
     }
   }
 
